@@ -2,17 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { IncidentMap } from "@/components/IncidentMap";
+import { RouteChecker } from "@/components/RouteChecker";
+import { SafetyIndex } from "@/components/SafetyIndex";
+import { TimeFilter } from "@/components/TimeFilter";
+import { HotspotsList } from "@/components/HotspotsList";
 import { 
   AlertTriangle, 
   Users, 
   Skull, 
-  TrendingUp, 
   Newspaper,
   MapPin,
   Clock,
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  Home,
+  Navigation,
+  Map,
+  Bell,
+  TrendingUp,
+  Shield,
 } from "lucide-react";
+
+type Tab = "home" | "routes" | "map" | "alerts" | "trends";
 
 interface NewsArticle {
   title: string;
@@ -21,65 +32,64 @@ interface NewsArticle {
   pubDate: string;
   summary?: string;
   incidentType?: string;
-  state?: string;
+  state?: string | null;
   casualties?: {
     killed?: number;
     kidnapped?: number;
   };
 }
 
-interface Incident {
-  id: string;
-  type: string;
-  state: string;
-  lga?: string;
-  latitude?: number;
-  longitude?: number;
-  date: string;
-  title: string;
-  killed: number;
-  kidnapped: number;
+interface SafetyData {
+  nationalIndex: {
+    score: number;
+    level: string;
+    color: string;
+    label: string;
+    statesAffected: number;
+    totalIncidents: number;
+  };
+  hotspots: any[];
+  states: any[];
 }
 
-interface Stats {
-  total: number;
-  byType: Record<string, number>;
-  byState: Record<string, number>;
-  totalKilled: number;
-  totalKidnapped: number;
-}
-
-export default function Home() {
+export default function HomePage() {
+  const [activeTab, setActiveTab] = useState<Tab>("home");
   const [news, setNews] = useState<NewsArticle[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [safetyData, setSafetyData] = useState<SafetyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<string | null>(null);
+  const [days, setDays] = useState(7);
 
-  const fetchNews = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/news");
-      const data = await res.json();
-      setNews(data.articles || []);
-      setStats(data.stats || null);
-      setLastUpdated(data.lastUpdated);
+      const [newsRes, safetyRes] = await Promise.all([
+        fetch("/api/news"),
+        fetch(`/api/safety?days=${days}`),
+      ]);
+      
+      const newsData = await newsRes.json();
+      const safetyDataResult = await safetyRes.json();
+      
+      setNews(newsData.articles || []);
+      setSafetyData(safetyDataResult);
+      setLastUpdated(new Date().toISOString());
     } catch (error) {
-      console.error("Failed to fetch news:", error);
+      console.error("Failed to fetch data:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchNews();
-    // Refresh every 10 minutes
-    const interval = setInterval(fetchNews, 10 * 60 * 1000);
+    fetchData();
+    const interval = setInterval(fetchData, 10 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [days]);
 
-  // Convert news to incidents for map display
-  const newsAsIncidents: Incident[] = news
+  // Convert news to incidents for map
+  const newsAsIncidents = news
     .filter((n) => n.state)
     .map((n, i) => ({
       id: `news-${i}`,
@@ -91,7 +101,6 @@ export default function Home() {
       kidnapped: n.casualties?.kidnapped || 0,
     }));
 
-  // Filter by selected state
   const filteredNews = selectedState
     ? news.filter((n) => n.state === selectedState)
     : news;
@@ -117,174 +126,145 @@ export default function Home() {
     return colors[type] || "bg-gray-100 text-gray-600";
   };
 
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: "home", label: "Home", icon: <Home className="w-5 h-5" /> },
+    { id: "routes", label: "Routes", icon: <Navigation className="w-5 h-5" /> },
+    { id: "map", label: "Map", icon: <Map className="w-5 h-5" /> },
+    { id: "alerts", label: "Alerts", icon: <Bell className="w-5 h-5" /> },
+    { id: "trends", label: "Trends", icon: <TrendingUp className="w-5 h-5" /> },
+  ];
+
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-white" />
+              <div className="w-9 h-9 bg-red-600 rounded-lg flex items-center justify-center">
+                <Shield className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                  SafeJourney.ng
+                <h1 className="text-lg font-bold text-gray-900 dark:text-white">
+                  SafeJourney<span className="text-red-600">.ng</span>
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Nigeria Security Incident Tracker
-                </p>
               </div>
             </div>
             
-            <button
-              onClick={fetchNews}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <TimeFilter value={days} onChange={setDays} />
+              <button
+                onClick={fetchData}
+                disabled={loading}
+                className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Stats Banner */}
-        {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 dark:bg-red-900 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {stats.total}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Incidents (24h)
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                  <Skull className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {stats.totalKilled}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Killed
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {stats.totalKidnapped}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Kidnapped
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {Object.keys(stats.byState).length}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    States Affected
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        {/* Home Tab */}
+        {activeTab === "home" && (
+          <div className="space-y-4">
+            {/* Safety Index */}
+            {safetyData && (
+              <SafetyIndex
+                score={safetyData.nationalIndex.score}
+                level={safetyData.nationalIndex.level}
+                color={safetyData.nationalIndex.color}
+                label={safetyData.nationalIndex.label}
+                statesAffected={safetyData.nationalIndex.statesAffected}
+                totalIncidents={safetyData.nationalIndex.totalIncidents}
+              />
+            )}
 
-        {/* Main Content */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Map */}
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                Incident Map
-                {selectedState && (
-                  <button
-                    onClick={() => setSelectedState(null)}
-                    className="ml-2 text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"
-                  >
-                    {selectedState} ✕
-                  </button>
-                )}
-              </h2>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-lg flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">
+                      {news.length}
+                    </p>
+                    <p className="text-xs text-gray-500">Incidents</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                    <Skull className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">
+                      {news.reduce((sum, n) => sum + (n.casualties?.killed || 0), 0)}
+                    </p>
+                    <p className="text-xs text-gray-500">Killed</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                    <Users className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">
+                      {news.reduce((sum, n) => sum + (n.casualties?.kidnapped || 0), 0)}
+                    </p>
+                    <p className="text-xs text-gray-500">Kidnapped</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="h-[500px]">
-              <IncidentMap
-                incidents={newsAsIncidents}
+
+            {/* Hotspots */}
+            {safetyData && (
+              <HotspotsList
+                hotspots={safetyData.hotspots}
                 onStateClick={setSelectedState}
                 selectedState={selectedState}
               />
-            </div>
-          </div>
+            )}
 
-          {/* News Feed */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Newspaper className="w-5 h-5" />
-                Latest Security News
-              </h2>
-              {lastUpdated && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  Updated {formatDate(lastUpdated)}
-                </p>
-              )}
-            </div>
-            
-            <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[600px] overflow-y-auto">
-              {loading && news.length === 0 ? (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                  <RefreshCw className="w-8 h-8 mx-auto mb-2 animate-spin" />
-                  Loading news...
-                </div>
-              ) : filteredNews.length === 0 ? (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                  No security incidents reported
-                  {selectedState && ` in ${selectedState}`}
-                </div>
-              ) : (
-                filteredNews.map((article, idx) => (
+            {/* Latest News */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Newspaper className="w-5 h-5" />
+                  Latest Security News
+                  {selectedState && (
+                    <button
+                      onClick={() => setSelectedState(null)}
+                      className="ml-2 text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"
+                    >
+                      {selectedState} ✕
+                    </button>
+                  )}
+                </h3>
+              </div>
+              
+              <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[400px] overflow-y-auto">
+                {filteredNews.slice(0, 10).map((article, idx) => (
                   <a
                     key={idx}
                     href={article.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="block p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2">
                         {article.title}
-                      </h3>
+                      </h4>
                       <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     </div>
                     
@@ -295,67 +275,148 @@ export default function Home() {
                         </span>
                       )}
                       {article.state && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
                           {article.state}
                         </span>
                       )}
-                      {(article.casualties?.killed || article.casualties?.kidnapped) && (
-                        <span className="text-xs text-red-600 dark:text-red-400">
-                          {article.casualties.killed ? `${article.casualties.killed} killed` : ""}
-                          {article.casualties.killed && article.casualties.kidnapped ? ", " : ""}
-                          {article.casualties.kidnapped ? `${article.casualties.kidnapped} kidnapped` : ""}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      <span>{article.source}</span>
-                      <span>•</span>
-                      <span>{formatDate(article.pubDate)}</span>
+                      <span className="text-xs text-gray-400">
+                        {article.source} • {formatDate(article.pubDate)}
+                      </span>
                     </div>
                   </a>
-                ))
-              )}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Hotspot States */}
-        {stats && Object.keys(stats.byState).length > 0 && (
-          <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
-            <h2 className="font-semibold text-gray-900 dark:text-white mb-4">
-              🔥 Hotspot States (Last 24h)
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(stats.byState)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 10)
-                .map(([state, count]) => (
-                  <button
-                    key={state}
-                    onClick={() => setSelectedState(selectedState === state ? null : state)}
-                    className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                      selectedState === state
-                        ? "bg-red-600 text-white"
-                        : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800"
-                    }`}
-                  >
-                    {state} ({count})
-                  </button>
-                ))}
+        {/* Routes Tab */}
+        {activeTab === "routes" && (
+          <RouteChecker onStateSelect={setSelectedState} />
+        )}
+
+        {/* Map Tab */}
+        {activeTab === "map" && (
+          <div className="space-y-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <MapPin className="w-5 h-5" />
+                  Incident Map
+                  {selectedState && (
+                    <button
+                      onClick={() => setSelectedState(null)}
+                      className="ml-2 text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"
+                    >
+                      {selectedState} ✕
+                    </button>
+                  )}
+                </h2>
+              </div>
+              <div className="h-[60vh]">
+                <IncidentMap
+                  incidents={newsAsIncidents}
+                  onStateClick={setSelectedState}
+                  selectedState={selectedState}
+                />
+              </div>
             </div>
+          </div>
+        )}
+
+        {/* Alerts Tab */}
+        {activeTab === "alerts" && (
+          <div className="space-y-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 text-center">
+              <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Alerts Coming Soon
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">
+                Subscribe to get notified about incidents in your area
+              </p>
+              <div className="max-w-xs mx-auto space-y-3">
+                <input
+                  type="text"
+                  placeholder="Enter your state"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                />
+                <button className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  Notify Me (Coming Soon)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Trends Tab */}
+        {activeTab === "trends" && (
+          <div className="space-y-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 text-center">
+              <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Trends & Analysis
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400">
+                Historical trends and detailed analysis coming soon
+              </p>
+            </div>
+            
+            {/* Preview of state comparison */}
+            {safetyData && safetyData.states && (
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
+                  State Safety Scores
+                </h3>
+                <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
+                  {safetyData.states
+                    .filter((s: any) => s.incidents > 0)
+                    .sort((a: any, b: any) => a.score - b.score)
+                    .map((state: any) => (
+                      <div
+                        key={state.state}
+                        className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
+                      >
+                        <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                          {state.state}
+                        </span>
+                        <span
+                          className="text-sm font-bold"
+                          style={{ color: state.color }}
+                        >
+                          {state.score}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-700 mt-12 py-6">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>SafeJourney.ng — Tracking security incidents across Nigeria</p>
-          <p className="mt-1">Data sourced from Nigerian news outlets. Not affiliated with any government agency.</p>
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex justify-around">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex flex-col items-center py-2 px-4 ${
+                  activeTab === tab.id
+                    ? "text-blue-600 dark:text-blue-400"
+                    : "text-gray-500 dark:text-gray-400"
+                }`}
+              >
+                {tab.icon}
+                <span className="text-xs mt-1">{tab.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </footer>
+      </nav>
     </main>
   );
 }
