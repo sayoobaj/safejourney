@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum IncidentType {
+  KIDNAPPING
+  BANDITRY
+  TERRORISM
+  ARMED_ROBBERY
+  OTHER
+}
+
+enum IncidentStatus {
+  REPORTED
+  CONFIRMED
+  RESOLVED
+  UNVERIFIED
+}
+
+model Incident {
+  id          String         @id @default(cuid())
+  type        IncidentType
+  status      IncidentStatus @default(REPORTED)
+  
+  // Location
+  state       String
+  lga         String?
+  location    String?        // Specific location description
+  latitude    Float?
+  longitude   Float?
+  
+  // Timing
+  date        DateTime       // When the incident occurred
+  reportedAt  DateTime       @default(now())
+  
+  // Details
+  title       String
+  description String?
+  
+  // Casualties
+  killed      Int            @default(0)
+  kidnapped   Int            @default(0)
+  rescued     Int            @default(0)
+  injured     Int            @default(0)
+  
+  // Source
+  sourceUrl   String?
+  sourceName  String?        // e.g., "Punch", "Vanguard"
+  
+  // Metadata
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  @@index([state])
+  @@index([type])
+  @@index([date])
+  @@index([status])
+}
+
+// For tracking news sources and avoiding duplicates
+model NewsSource {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  rssUrl      String
+  enabled     Boolean  @default(true)
+  lastFetched DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// Cached news articles for display
+model NewsArticle {
+  id          String   @id @default(cuid())
+  title       String
+  url         String   @unique
+  sourceName  String
+  publishedAt DateTime
+  summary     String?
+  
+  // Extracted info
+  mentionsKidnapping Boolean @default(false)
+  mentionsBanditry   Boolean @default(false)
+  mentionsTerrorism  Boolean @default(false)
+  extractedState     String?
+  
+  // Processing
+  processed   Boolean  @default(false)
+  incidentId  String?  // Link to created incident if any
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([publishedAt])
+  @@index([processed])
+}
