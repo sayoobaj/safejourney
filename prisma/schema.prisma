@@ -71,6 +71,33 @@ model NewsSource {
   createdAt   DateTime @default(now())
 }
 
+// Alert subscriptions
+model AlertSubscription {
+  id        String   @id @default(cuid())
+  
+  // User identification (supports multiple channels)
+  platform  String   // "telegram" | "email" | "sms"
+  userId    String   // telegram chat id, email, or phone
+  
+  // What to monitor
+  type      String   // "state" | "route" | "national"
+  target    String   // state name, route id, or "all"
+  
+  // Preferences
+  minSeverity String @default("MODERATE") // "LOW" | "MODERATE" | "HIGH" | "SEVERE"
+  active    Boolean  @default(true)
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastAlertAt DateTime?
+  
+  @@unique([platform, userId, type, target])
+  @@index([platform, userId])
+  @@index([type, target])
+  @@index([active])
+}
+
 // Cached news articles for display
 model NewsArticle {
   id          String   @id @default(cuid())
