@@ -6,6 +6,9 @@ import { RouteChecker } from "@/components/RouteChecker";
 import { SafetyIndex } from "@/components/SafetyIndex";
 import { TimeFilter } from "@/components/TimeFilter";
 import { HotspotsList } from "@/components/HotspotsList";
+import { TrendChart, BarChart } from "@/components/TrendChart";
+import { StateReportCard } from "@/components/StateReportCard";
+import { NIGERIAN_STATES } from "@/data/states";
 import { 
   AlertTriangle, 
   Users, 
@@ -52,10 +55,24 @@ interface SafetyData {
   states: any[];
 }
 
+interface TrendsData {
+  timeline: { label: string; incidents: number; killed: number; kidnapped: number }[];
+  byType: { type: string; count: number; color: string }[];
+  topStates: { state: string; count: number }[];
+  summary: {
+    totalIncidents: number;
+    totalKilled: number;
+    totalKidnapped: number;
+    trendPercent: number;
+    trendDirection: string;
+  };
+}
+
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [safetyData, setSafetyData] = useState<SafetyData | null>(null);
+  const [trendsData, setTrendsData] = useState<TrendsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<string | null>(null);
@@ -64,16 +81,19 @@ export default function HomePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [newsRes, safetyRes] = await Promise.all([
+      const [newsRes, safetyRes, trendsRes] = await Promise.all([
         fetch("/api/news"),
         fetch(`/api/safety?days=${days}`),
+        fetch(`/api/trends?days=${days}`),
       ]);
       
       const newsData = await newsRes.json();
       const safetyDataResult = await safetyRes.json();
+      const trendsDataResult = await trendsRes.json();
       
       setNews(newsData.articles || []);
       setSafetyData(safetyDataResult);
+      setTrendsData(trendsDataResult);
       setLastUpdated(new Date().toISOString());
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -353,30 +373,119 @@ export default function HomePage() {
         {/* Trends Tab */}
         {activeTab === "trends" && (
           <div className="space-y-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 text-center">
-              <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Trends & Analysis
-              </h2>
-              <p className="text-gray-500 dark:text-gray-400">
-                Historical trends and detailed analysis coming soon
-              </p>
-            </div>
+            {/* Summary Stats */}
+            {trendsData && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {trendsData.summary.totalIncidents}
+                  </div>
+                  <div className="text-sm text-gray-500">Total Incidents</div>
+                  <div className={`text-xs mt-1 ${
+                    trendsData.summary.trendDirection === "worsening" 
+                      ? "text-red-500" 
+                      : trendsData.summary.trendDirection === "improving"
+                        ? "text-green-500"
+                        : "text-gray-500"
+                  }`}>
+                    {trendsData.summary.trendPercent > 0 ? "+" : ""}
+                    {trendsData.summary.trendPercent}% vs previous period
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+                  <div className="text-2xl font-bold text-red-600">
+                    {trendsData.summary.totalKilled + trendsData.summary.totalKidnapped}
+                  </div>
+                  <div className="text-sm text-gray-500">Total Casualties</div>
+                  <div className="text-xs mt-1 text-gray-400">
+                    {trendsData.summary.totalKilled} killed, {trendsData.summary.totalKidnapped} kidnapped
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Incidents Timeline */}
+            {trendsData && trendsData.timeline.length > 0 && (
+              <TrendChart
+                data={trendsData.timeline.map(t => ({ label: t.label, value: t.incidents }))}
+                title="Incidents Over Time"
+                color="#EF4444"
+                height={150}
+              />
+            )}
+
+            {/* By Type */}
+            {trendsData && trendsData.byType.length > 0 && (
+              <BarChart
+                data={trendsData.byType.map(t => ({
+                  label: t.type.toLowerCase().replace("_", " "),
+                  value: t.count,
+                  color: t.color,
+                }))}
+                title="By Incident Type"
+              />
+            )}
+
+            {/* Top States */}
+            {trendsData && trendsData.topStates.length > 0 && (
+              <BarChart
+                data={trendsData.topStates.map(s => ({
+                  label: s.state,
+                  value: s.count,
+                  color: "#3B82F6",
+                }))}
+                title="Most Affected States"
+              />
+            )}
             
-            {/* Preview of state comparison */}
+            {/* State Report Card Preview */}
+            {selectedState && safetyData && (
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+                  State Report Card
+                </h3>
+                {(() => {
+                  const stateData = safetyData.states.find((s: any) => s.state === selectedState);
+                  const stateInfo = NIGERIAN_STATES.find(s => s.name === selectedState);
+                  if (!stateData || !stateInfo) return null;
+                  return (
+                    <StateReportCard
+                      state={stateData.state}
+                      zone={stateInfo.zone}
+                      score={stateData.score}
+                      level={stateData.level}
+                      color={stateData.color}
+                      incidents={stateData.incidents}
+                      killed={stateData.killed}
+                      kidnapped={stateData.kidnapped}
+                      trend={stateData.trend}
+                      trendPercent={stateData.trendPercent}
+                      period={`${days} days`}
+                    />
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* All States Grid */}
             {safetyData && safetyData.states && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
-                  State Safety Scores
+                  All State Safety Scores
                 </h3>
                 <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
                   {safetyData.states
                     .filter((s: any) => s.incidents > 0)
                     .sort((a: any, b: any) => a.score - b.score)
                     .map((state: any) => (
-                      <div
+                      <button
                         key={state.state}
-                        className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
+                        onClick={() => setSelectedState(state.state)}
+                        className={`flex items-center justify-between p-2 rounded-lg transition-colors ${
+                          selectedState === state.state
+                            ? "bg-blue-100 dark:bg-blue-900/50"
+                            : "bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
                       >
                         <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
                           {state.state}
@@ -387,7 +496,7 @@ export default function HomePage() {
                         >
                           {state.score}
                         </span>
-                      </div>
+                      </button>
                     ))}
                 </div>
               </div>
