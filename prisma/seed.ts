@@ -13,7 +13,7 @@ const incidents = [
     date: new Date('2026-02-08'),
     killed: 15,
     kidnapped: 8,
-    source: 'Premium Times',
+    sourceName: 'Premium Times',
   },
   {
     type: 'KIDNAPPING' as const,
@@ -23,7 +23,7 @@ const incidents = [
     description: 'Unknown gunmen abducted five travelers along the Kaduna-Abuja highway near Rijana area.',
     date: new Date('2026-02-09'),
     kidnapped: 5,
-    source: 'Vanguard',
+    sourceName: 'Vanguard',
   },
   {
     type: 'TERRORISM' as const,
@@ -34,7 +34,7 @@ const incidents = [
     date: new Date('2026-02-07'),
     killed: 3,
     injured: 7,
-    source: 'Punch',
+    sourceName: 'Punch',
   },
   {
     type: 'ARMED_ROBBERY' as const,
@@ -44,7 +44,7 @@ const incidents = [
     description: 'A gang of armed robbers attacked customers leaving a bank in Ikorodu, dispossessing them of cash and valuables.',
     date: new Date('2026-02-10'),
     injured: 2,
-    source: 'Punch',
+    sourceName: 'Punch',
   },
   {
     type: 'BANDITRY' as const,
@@ -54,7 +54,7 @@ const incidents = [
     description: 'Armed bandits invaded Unguwar Musa village and rustled over 200 cattle after overpowering local vigilantes.',
     date: new Date('2026-02-06'),
     killed: 2,
-    source: 'Daily Trust',
+    sourceName: 'Daily Trust',
   },
   {
     type: 'KIDNAPPING' as const,
@@ -64,7 +64,7 @@ const incidents = [
     description: 'Bandits abducted about 20 villagers from Kukoki community in Rafi LGA during an overnight raid.',
     date: new Date('2026-02-05'),
     kidnapped: 20,
-    source: 'Premium Times',
+    sourceName: 'Premium Times',
   },
   {
     type: 'TERRORISM' as const,
@@ -75,7 +75,7 @@ const incidents = [
     date: new Date('2026-02-04'),
     killed: 5,
     injured: 3,
-    source: 'Sahara Reporters',
+    sourceName: 'Sahara Reporters',
   },
   {
     type: 'BANDITRY' as const,
@@ -85,7 +85,7 @@ const incidents = [
     description: 'Armed bandits attacked Gandi village in Rabah LGA, killing 8 residents and burning several houses.',
     date: new Date('2026-02-03'),
     killed: 8,
-    source: 'Vanguard',
+    sourceName: 'Vanguard',
   },
   {
     type: 'KIDNAPPING' as const,
@@ -95,7 +95,7 @@ const incidents = [
     description: 'A village head was kidnapped by gunmen along the Wukari-Jalingo road. Ransom demanded.',
     date: new Date('2026-02-02'),
     kidnapped: 1,
-    source: 'Tribune',
+    sourceName: 'Tribune',
   },
   {
     type: 'ARMED_ROBBERY' as const,
@@ -106,7 +106,7 @@ const incidents = [
     date: new Date('2026-02-01'),
     killed: 1,
     injured: 4,
-    source: 'Channels TV',
+    sourceName: 'Channels TV',
   },
   {
     type: 'BANDITRY' as const,
@@ -116,7 +116,7 @@ const incidents = [
     description: 'Suspected herders attacked Rim village, killing 12 farmers and destroying crops.',
     date: new Date('2026-01-30'),
     killed: 12,
-    source: 'Premium Times',
+    sourceName: 'Premium Times',
   },
   {
     type: 'KIDNAPPING' as const,
@@ -126,7 +126,7 @@ const incidents = [
     description: 'Gunmen abducted 6 passengers from a commercial bus along Lagos-Ore expressway in Ogun State.',
     date: new Date('2026-01-29'),
     kidnapped: 6,
-    source: 'Guardian',
+    sourceName: 'Guardian',
   },
   {
     type: 'OTHER' as const,
@@ -137,7 +137,7 @@ const incidents = [
     date: new Date('2026-01-28'),
     killed: 4,
     injured: 10,
-    source: 'Vanguard',
+    sourceName: 'Vanguard',
   },
   {
     type: 'TERRORISM' as const,
@@ -148,7 +148,7 @@ const incidents = [
     date: new Date('2026-01-27'),
     killed: 7,
     injured: 15,
-    source: 'Punch',
+    sourceName: 'Punch',
   },
   {
     type: 'BANDITRY' as const,
@@ -159,7 +159,7 @@ const incidents = [
     date: new Date('2026-01-26'),
     killed: 10,
     kidnapped: 15,
-    source: 'Daily Trust',
+    sourceName: 'Daily Trust',
   },
 ]
 
