@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Shield, AlertTriangle, ExternalLink } from "lucide-react";
 
@@ -23,7 +23,7 @@ interface WidgetData {
   };
 }
 
-export default function EmbedPage() {
+function EmbedContent() {
   const searchParams = useSearchParams();
   const state = searchParams.get("state");
   const theme = searchParams.get("theme") || "light";
@@ -187,4 +187,12 @@ export default function EmbedPage() {
   }
 
   return null;
+}
+
+export default function EmbedPage() {
+  return (
+    <Suspense fallback={<div className="p-4 animate-pulse">Loading...</div>}>
+      <EmbedContent />
+    </Suspense>
+  );
 }
